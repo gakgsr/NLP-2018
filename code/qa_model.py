@@ -140,7 +140,7 @@ class QAModel(object):
         attn_output = attn_layer.build_graph(context_hiddens, question_hiddens )
 
         encoder1 = BiLSTM_layer5(self.FLAGS.hidden_size, self.keep_prob)
-        encode_out = encoder1.build_graph(attn_output)
+        encode_out = tf.transpose(encoder1.build_graph(tf.transpose(attn_output, perm=[0, 2, 1])), perm=[0, 2, 1])
 
         softm = OutputLayer_6()
         self.probdist_start,self.probdist_end = softm.build_graph(attn_output,encode_out)
