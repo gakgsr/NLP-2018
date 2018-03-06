@@ -187,7 +187,7 @@ class QAModel(object):
         """
         with vs.variable_scope("loss"):
 
-            self.loss = tf.negative(tf.reduce_mean(tf.log(self.probdist_start))+ tf.reduce_mean(tf.log(self.probdist_end)))
+            self.loss = tf.negative(tf.reduce_mean(tf.multiply(tf.cast(self.context_mask, tf.float32), tf.log(self.probdist_start)))+ tf.reduce_mean(tf.multiply(tf.cast(self.context_mask, tf.float32), tf.log(self.probdist_end))))
             tf.summary.scalar('loss', self.loss)
 
 
