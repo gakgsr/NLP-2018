@@ -31,7 +31,7 @@ from evaluate import exact_match_score, f1_score
 from data_batcher import get_batch_generator
 from pretty_print import print_example
 from modules import RNNEncoder, SimpleSoftmaxLayer, BasicAttn
-from Bidafmodule import BiLSTM_layer3, Attention_layer4, BiLSTM_layer5, OutputLayer_6
+from bidafmodule import BiLSTM_layer3, Attention_layer4, BiLSTM_layer5, OutputLayer_6
 
 logging.basicConfig(level=logging.INFO)
 
