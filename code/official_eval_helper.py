@@ -27,7 +27,17 @@ from nltk.tokenize.moses import MosesDetokenizer
 
 from preprocessing.squad_preprocess import data_from_json, tokenize
 from vocab import UNK_ID, PAD_ID
-from data_batcher import padded, Batch
+from data_batcher import padded, Batch, char_padded 
+
+
+def sentence_to_char_ids(tokens):
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-,;.!?:'\"/\\|_@#$%^&*~`+-=<>()[]{}\n"
+    ids = []
+    for token in tokens:
+        char_ids = [alphabet.find(w) for w in token]
+        ids.extend(char_ids)
+        ids.extend([len(alphabet)])
+    return ids
 
 
 
@@ -67,6 +77,8 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
         # Convert context_tokens and qn_tokens to context_ids and qn_ids
         context_ids = [word2id.get(w, UNK_ID) for w in context_tokens]
         qn_ids = [word2id.get(w, UNK_ID) for w in qn_tokens]
+        context_char_ids = sentence_to_char_ids(context_tokens)
+        qn_char_ids = sentence_to_char_ids(qn_tokens)
 
         # Truncate context_ids and qn_ids
         # Note: truncating context_ids may truncate the correct answer, meaning that it's impossible for your model to get the correct answer on this example!
@@ -76,7 +88,7 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
             context_ids = context_ids[:context_len]
 
         # Add to list of examples
-        examples.append((qn_uuid, context_tokens, context_ids, qn_ids))
+        examples.append((qn_uuid, context_tokens, context_ids, qn_ids, context_char_ids, qn_char_ids))
 
         # Stop if you've got a batch
         if len(examples) == batch_size:
@@ -87,9 +99,9 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
 
     # Make into batches
     for batch_start in xrange(0, len(examples), batch_size):
-        uuids_batch, context_tokens_batch, context_ids_batch, qn_ids_batch = zip(*examples[batch_start:batch_start + batch_size])
+        uuids_batch, context_tokens_batch, context_ids_batch, qn_ids_batch, context_char_batch, qn_char_batch = zip(*examples[batch_start:batch_start + batch_size])
 
-        batches.append((uuids_batch, context_tokens_batch, context_ids_batch, qn_ids_batch))
+        batches.append((uuids_batch, context_tokens_batch, context_ids_batch, qn_ids_batch, context_char_batch, qn_char_batch))
 
     return
 
@@ -119,22 +131,26 @@ def get_batch_generator(word2id, qn_uuid_data, context_token_data, qn_token_data
             break
 
         # Get next batch. These are all lists length batch_size
-        (uuids, context_tokens, context_ids, qn_ids) = batches.pop(0)
+        (uuids, context_tokens, context_ids, qn_ids, context_char_ids, qn_char_ids) = batches.pop(0)
 
         # Pad context_ids and qn_ids
         qn_ids = padded(qn_ids, question_len) # pad questions to length question_len
         context_ids = padded(context_ids, context_len) # pad contexts to length context_len
+        qn_char_ids = char_padded(qn_char_ids, question_len*9)
+        context_char_ids = char_padded(context_char_ids, context_len*9)
 
         # Make qn_ids into a np array and create qn_mask
         qn_ids = np.array(qn_ids)
+        qn_char_ids = np.array(qn_char_ids)
         qn_mask = (qn_ids != PAD_ID).astype(np.int32)
 
         # Make context_ids into a np array and create context_mask
         context_ids = np.array(context_ids)
+        context_char_ids = np.array(context_char_ids)
         context_mask = (context_ids != PAD_ID).astype(np.int32)
 
         # Make into a Batch object
-        batch = Batch(context_ids, context_mask, context_tokens, qn_ids, qn_mask, qn_tokens=None, ans_span=None, ans_tokens=None, uuids=uuids)
+        batch = Batch(context_ids, context_mask, context_tokens, qn_ids, qn_mask, qn_tokens=None, ans_span=None, ans_tokens=None, context_char_ids=context_char_ids, qn_char_ids=qn_char_ids, uuids=uuids)
 
         yield batch
 

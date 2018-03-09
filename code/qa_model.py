@@ -276,7 +276,7 @@ class QAModel(object):
 
         input_feed = {}
         input_feed[self.context_ids] = batch.context_ids
-        input_feed[self.context__char_ids] = batch.context_char_ids
+        input_feed[self.context_char_ids] = batch.context_char_ids
         input_feed[self.context_mask] = batch.context_mask
         input_feed[self.qn_ids] = batch.qn_ids
         input_feed[self.qn_char_ids] = batch.qn_char_ids
