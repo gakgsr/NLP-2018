@@ -110,7 +110,7 @@ class OutputLayer_6(object):
         self.rnn_cell_bw = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, forget_bias=1.0)
         self.rnn_cell_bw = DropoutWrapper(self.rnn_cell_bw, input_keep_prob=self.keep_prob)
 
-    def build_graph(self, G, M):
+    def build_graph(self, G, M, H_mask):
         with vs.variable_scope("OutputLayer"):
 
             # Linear downprojection layer
@@ -123,9 +123,9 @@ class OutputLayer_6(object):
             w1=tf.get_variable("w1",[G_shap[1]+M_shap[1]], initializer=tf.contrib.layers.xavier_initializer())
             w2=tf.get_variable("w2",[G_shap[1]+M2_shap[1]], initializer=tf.contrib.layers.xavier_initializer())
 
-            p1=tf.nn.softmax(tf.tensordot(w1, tf.concat([G,M],1), axes=[[0], [1]]))
-            p2=tf.nn.softmax(tf.tensordot(w2, tf.concat([G,M2],1), axes=[[0], [1]]))
-            return p1,p2
+            p1_logits, p1_dist = masked_softmax(tf.tensordot(w1, tf.concat([G,M],1), axes=[[0], [1]]), H_mask, 1)
+            p2_logits, p2_dist = masked_softmax(tf.tensordot(w2, tf.concat([G,M2],1), axes=[[0], [1]]), H_mask, 1)
+            return p1_logits, p1_dist, p2_logits, p2_dist
 
 def masked_softmax(logits, mask, dim):
     exp_mask = (1 - tf.cast(mask, 'float')) * (-1e30) # -large where there's padding, 0 elsewhere

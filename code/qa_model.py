@@ -164,7 +164,7 @@ class QAModel(object):
 
 
         softm = OutputLayer_6(self.FLAGS.hidden_size, self.keep_prob)
-        self.probdist_start,self.probdist_end = softm.build_graph(attn_output,encode_out)
+        self.logits_start, self.probdist_start, self.logits_end, self.probdist_end = softm.build_graph(attn_output,encode_out, self.context_mask)
 
         # Concat attn_output to context_hiddens to get blended_reps
         # blended_reps = tf.concat([context_hiddens, attn_output], axis=2) # (batch_size, context_len, hidden_size*4)
@@ -208,7 +208,19 @@ class QAModel(object):
         """
         with vs.variable_scope("loss"):
 
-            self.loss = tf.negative(tf.reduce_mean(tf.multiply(tf.cast(self.context_mask, tf.float32), tf.log(self.probdist_start)))+ tf.reduce_mean(tf.multiply(tf.cast(self.context_mask, tf.float32), tf.log(self.probdist_end))))
+            #self.loss = tf.negative(tf.reduce_mean(tf.multiply(tf.cast(self.context_mask, tf.float32), tf.log(self.probdist_start)))+ tf.reduce_mean(tf.multiply(tf.cast(self.context_mask, tf.float32), tf.log(self.probdist_end))))
+            #tf.summary.scalar('loss', self.loss)
+            loss_start = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits_start, labels=self.ans_span[:, 0]) # loss_start has shape (batch_size)
+            self.loss_start = tf.reduce_mean(loss_start) # scalar. avg across batch
+            tf.summary.scalar('loss_start', self.loss_start) # log to tensorboard
+
+            # Calculate loss for prediction of end position
+            loss_end = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits_end, labels=self.ans_span[:, 1])
+            self.loss_end = tf.reduce_mean(loss_end)
+            tf.summary.scalar('loss_end', self.loss_end)
+
+            # Add the two losses
+            self.loss = self.loss_start + self.loss_end
             tf.summary.scalar('loss', self.loss)
 
 
