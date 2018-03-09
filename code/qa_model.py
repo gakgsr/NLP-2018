@@ -88,9 +88,11 @@ class QAModel(object):
         # These are all batch-first: the None corresponds to batch_size and
         # allows you to run the same model with variable batch_size
         self.context_ids = tf.placeholder(tf.int32, shape=[None, self.FLAGS.context_len])
+        self.context_char_ids = tf.placeholder(tf.int32, shape=[None, self.FLAGS.context_len*9])
         self.context_mask = tf.placeholder(tf.int32, shape=[None, self.FLAGS.context_len])
         self.qn_ids = tf.placeholder(tf.int32, shape=[None, self.FLAGS.question_len])
         self.qn_mask = tf.placeholder(tf.int32, shape=[None, self.FLAGS.question_len])
+        self.qn_char_ids = tf.placeholder(tf.int32, shape=[None, self.FLAGS.question_len*9])
         self.ans_span = tf.placeholder(tf.int32, shape=[None, 2])
 
         # Add a placeholder to feed in the keep probability (for dropout).
@@ -131,9 +133,24 @@ class QAModel(object):
         # Use a RNN to get hidden states for the context and the question
         # Note: here the RNNEncoder is shared (i.e. the weights are the same)
         # between the context and the question.
+        c_emb_shap = self.context_embs.get_shape().as_list()
+        embed_dim = c_emb_shap[2]
+        ctxt_len = c_emb_shap[1]
+        q_emb_shap = self.qn_embs.get_shape().as_list()
+        qxn_len = c_emb_shap[1]
+
+        cnn_char = char_CNN_layer1(embed_dim)
+        context_char_embed_big = cnn_char.build_graph(self.context_char_ids) # shape (batch_size, context_len*9, embedding_size)
+        qn_char_embed_big = cnn_char.build_graph(self.qn_char_ids) # shape (batch_size, qn_len*9, embedding_size)
+        whwyc=tf.get_variable("whwyc",[ctxt_len, ctxt_len*9], initializer=tf.contrib.layers.xavier_initializer())
+        whwyq=tf.get_variable("whwyq",[qxn_len, qxn_len*9], initializer=tf.contrib.layers.xavier_initializer())
+        context_char_embed = tf.tensordot(whwyc, context_char_embed_big, axes=[[1], [1]]) # shape (batch_size, context_len, embedding_size)
+        qn_char_embed = tf.tensordot(whwyq, qn_char_embed_big, axes=[[1], [1]]) # shape (batch_size, qn_len, embedding_size)
+
+
         encoder = BiLSTM_layer3(self.FLAGS.hidden_size, self.keep_prob)
-        context_hiddens = encoder.build_graph(self.context_embs, self.context_mask) # (batch_size, context_len, hidden_size*2)
-        question_hiddens = encoder.build_graph(self.qn_embs, self.qn_mask) # (batch_size, question_len, hidden_size*2)
+        context_hiddens = encoder.build_graph(tf.concat([self.context_embs, context_char_embed], 2), self.context_mask) # (batch_size, context_len, hidden_size*2)
+        question_hiddens = encoder.build_graph(tf.concat([self.qn_embs, qn_char_embed], 2), self.qn_mask) # (batch_size, question_len, hidden_size*2)
 
         # Use context hidden states to attend to question hidden states
         attn_layer = Attention_layer4(self.keep_prob)
@@ -209,8 +226,10 @@ class QAModel(object):
         # Match up our input data with the placeholders
         input_feed = {}
         input_feed[self.context_ids] = batch.context_ids
+        input_feed[self.context_char_ids] = batch.context_char_ids
         input_feed[self.context_mask] = batch.context_mask
         input_feed[self.qn_ids] = batch.qn_ids
+        input_feed[self.qn_char_ids] = batch.qn_char_ids
         input_feed[self.qn_mask] = batch.qn_mask
         input_feed[self.ans_span] = batch.ans_span
         input_feed[self.keep_prob] = 1.0 - self.FLAGS.dropout # apply dropout
@@ -241,8 +260,10 @@ class QAModel(object):
 
         input_feed = {}
         input_feed[self.context_ids] = batch.context_ids
+        input_feed[self.context__char_ids] = batch.context_char_ids
         input_feed[self.context_mask] = batch.context_mask
         input_feed[self.qn_ids] = batch.qn_ids
+        input_feed[self.qn_char_ids] = batch.qn_char_ids
         input_feed[self.qn_mask] = batch.qn_mask
         input_feed[self.ans_span] = batch.ans_span
         # note you don't supply keep_prob here, so it will default to 1 i.e. no dropout
@@ -267,8 +288,10 @@ class QAModel(object):
         """
         input_feed = {}
         input_feed[self.context_ids] = batch.context_ids
+        input_feed[self.context_char_ids] = batch.context_char_ids
         input_feed[self.context_mask] = batch.context_mask
         input_feed[self.qn_ids] = batch.qn_ids
+        input_feed[self.qn_char_ids] = batch.qn_char_ids
         input_feed[self.qn_mask] = batch.qn_mask
         # note you don't supply keep_prob here, so it will default to 1 i.e. no dropout
 

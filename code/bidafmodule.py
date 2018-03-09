@@ -3,14 +3,26 @@ from tensorflow.python.ops.rnn_cell import DropoutWrapper
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.ops import rnn_cell
 
+class char_CNN_layer1(object):
+    def __init__(self, hidden_size):
+        self.hidden_size = hidden_size
+
+    def build_graph(self, inputs, masks):
+        with vs.variable_scope("BiLSTM3"):
+            wc1=tf.get_variable("wc1",[5, 97, hidden_size], initializer=tf.contrib.layers.xavier_initializer())
+            bc1=tf.get_variable("bc1",[hidden_size], initializer=tf.contrib.layers.xavier_initializer())
+            out = tf.nn.conv1d(tf.one_hot(inputs, 97), wc1, stride=1, padding='SAME')
+            out = tf.nn.relu(out + bc1) - alpha * tf.nn.relu(-out - bc1)
+            return out
+
 class BiLSTM_layer3(object):
     def __init__(self, hidden_size, keep_prob):
         self.hidden_size = hidden_size
         self.keep_prob = keep_prob
         self.rnn_cell_fw = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, forget_bias=1.0)
-        # self.rnn_cell_fw = DropoutWrapper(self.rnn_cell_fw, input_keep_prob=self.keep_prob)
+        self.rnn_cell_fw = DropoutWrapper(self.rnn_cell_fw, input_keep_prob=self.keep_prob)
         self.rnn_cell_bw = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, forget_bias=1.0)
-        # self.rnn_cell_bw = DropoutWrapper(self.rnn_cell_bw, input_keep_prob=self.keep_prob)
+        self.rnn_cell_bw = DropoutWrapper(self.rnn_cell_bw, input_keep_prob=self.keep_prob)
 
     def build_graph(self, inputs, masks):
         with vs.variable_scope("BiLSTM3"):
@@ -24,7 +36,7 @@ class BiLSTM_layer3(object):
             out = tf.concat([fw_out, bw_out], 2)
 
             # Apply dropout
-            # out = tf.nn.dropout(out, self.keep_prob)
+            out = tf.nn.dropout(out, self.keep_prob)
 
             return out
 
@@ -59,7 +71,7 @@ class Attention_layer4(object):
             output1=tf.concat([H,U_hat],1)  #batch_dim 2*embed_dim context_len
             output2=tf.concat([tf.multiply(H,U_hat),tf.multiply(H,H_hat)],1)  #batch_dim 2*embed_dim context_len
             output=tf.concat([output1,output2],1)  #batch_dim 4*embed_dim context_len
-            # output = tf.nn.dropout(output, self.keep_prob)
+            output = tf.nn.dropout(output, self.keep_prob)
             return output
 
 
@@ -68,9 +80,9 @@ class BiLSTM_layer5(object):
         self.hidden_size = hidden_size
         self.keep_prob = keep_prob
         self.rnn_cell_fw = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, forget_bias=1.0)
-        # self.rnn_cell_fw = DropoutWrapper(self.rnn_cell_fw, input_keep_prob=self.keep_prob)
+        self.rnn_cell_fw = DropoutWrapper(self.rnn_cell_fw, input_keep_prob=self.keep_prob)
         self.rnn_cell_bw = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, forget_bias=1.0)
-        # self.rnn_cell_bw = DropoutWrapper(self.rnn_cell_bw, input_keep_prob=self.keep_prob)
+        self.rnn_cell_bw = DropoutWrapper(self.rnn_cell_bw, input_keep_prob=self.keep_prob)
 
     def build_graph(self, inputs):
         with vs.variable_scope("BiLSTM5"):
@@ -85,7 +97,7 @@ class BiLSTM_layer5(object):
             out = tf.concat([fw_out, bw_out], 2)
 
             # Apply dropout
-            # out = tf.nn.dropout(out, self.keep_prob)
+            out = tf.nn.dropout(out, self.keep_prob)
 
             return out
 class OutputLayer_6(object):
