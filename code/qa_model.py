@@ -154,12 +154,13 @@ class QAModel(object):
 
         # Use context hidden states to attend to question hidden states
         attn_layer = Attention_layer4(self.keep_prob)
-        attn_output = attn_layer.build_graph(context_hiddens, question_hiddens )
+        attn_output = attn_layer.build_graph(context_hiddens, question_hiddens, self.qn_mask)# (batch_size, context_len, hidden_size*8)
 
         encoder1 = BiLSTM_layer5(self.FLAGS.hidden_size, self.keep_prob)
-        encode_out = tf.transpose(encoder1.build_graph(tf.transpose(attn_output, perm=[0, 2, 1])), perm=[0, 2, 1])
+        encode_out_1 = tf.transpose(encoder1.build_graph(tf.transpose(attn_output, perm=[0, 2, 1])), perm=[0, 2, 1], "BiLSTM5_1")# (batch_size, context_len, hidden_size*2)
+        encode_out = tf.transpose(encoder1.build_graph(tf.transpose(encode_out_1, perm=[0, 2, 1])), perm=[0, 2, 1], "BiLSTM5_2")# (batch_size, context_len, hidden_size*2)
 
-        softm = OutputLayer_6()
+        softm = OutputLayer_6(self.FLAGS.hidden_size, self.keep_prob)
         self.probdist_start,self.probdist_end = softm.build_graph(attn_output,encode_out)
 
         # Concat attn_output to context_hiddens to get blended_reps
