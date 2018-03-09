@@ -31,7 +31,7 @@ from evaluate import exact_match_score, f1_score
 from data_batcher import get_batch_generator
 from pretty_print import print_example
 from modules import RNNEncoder, SimpleSoftmaxLayer, BasicAttn
-from bidafmodule import BiLSTM_layer3, Attention_layer4, BiLSTM_layer5, OutputLayer_6
+from bidafmodule import char_CNN_layer1, BiLSTM_layer3, Attention_layer4, BiLSTM_layer5, OutputLayer_6
 
 logging.basicConfig(level=logging.INFO)
 
@@ -137,16 +137,16 @@ class QAModel(object):
         embed_dim = c_emb_shap[2]
         ctxt_len = c_emb_shap[1]
         q_emb_shap = self.qn_embs.get_shape().as_list()
-        qxn_len = c_emb_shap[1]
+        qxn_len = q_emb_shap[1]
 
         cnn_char = char_CNN_layer1(embed_dim)
-        context_char_embed_big = cnn_char.build_graph(self.context_char_ids) # shape (batch_size, context_len*9, embedding_size)
-        qn_char_embed_big = cnn_char.build_graph(self.qn_char_ids) # shape (batch_size, qn_len*9, embedding_size)
+        context_char_embed_big = cnn_char.build_graph(self.context_char_ids, "ctxt_cnn") # shape (batch_size, context_len*9, embedding_size)
+        qn_char_embed_big = cnn_char.build_graph(self.qn_char_ids, "qn_cnn") # shape (batch_size, qn_len*9, embedding_size)
+
         whwyc=tf.get_variable("whwyc",[ctxt_len, ctxt_len*9], initializer=tf.contrib.layers.xavier_initializer())
         whwyq=tf.get_variable("whwyq",[qxn_len, qxn_len*9], initializer=tf.contrib.layers.xavier_initializer())
-        context_char_embed = tf.tensordot(whwyc, context_char_embed_big, axes=[[1], [1]]) # shape (batch_size, context_len, embedding_size)
-        qn_char_embed = tf.tensordot(whwyq, qn_char_embed_big, axes=[[1], [1]]) # shape (batch_size, qn_len, embedding_size)
-
+        context_char_embed = tf.transpose(tf.tensordot(whwyc, context_char_embed_big, axes=[[1], [1]]), perm = [1, 0, 2]) # shape (batch_size, context_len, embedding_size)
+        qn_char_embed = tf.transpose(tf.tensordot(whwyq, qn_char_embed_big, axes=[[1], [1]]), perm = [1, 0, 2]) # shape (batch_size, qn_len, embedding_size)
 
         encoder = BiLSTM_layer3(self.FLAGS.hidden_size, self.keep_prob)
         context_hiddens = encoder.build_graph(tf.concat([self.context_embs, context_char_embed], 2), self.context_mask) # (batch_size, context_len, hidden_size*2)

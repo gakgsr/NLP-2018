@@ -7,12 +7,12 @@ class char_CNN_layer1(object):
     def __init__(self, hidden_size):
         self.hidden_size = hidden_size
 
-    def build_graph(self, inputs, masks):
-        with vs.variable_scope("BiLSTM3"):
-            wc1=tf.get_variable("wc1",[5, 97, hidden_size], initializer=tf.contrib.layers.xavier_initializer())
-            bc1=tf.get_variable("bc1",[hidden_size], initializer=tf.contrib.layers.xavier_initializer())
-            out = tf.nn.conv1d(tf.one_hot(inputs, 97), wc1, stride=1, padding='SAME')
-            out = tf.nn.relu(out + bc1) - alpha * tf.nn.relu(-out - bc1)
+    def build_graph(self, inputs, scope_val):
+        with vs.variable_scope(scope_val):
+            wcnn1=tf.get_variable("wcnn1",[5, 97, self.hidden_size], initializer=tf.contrib.layers.xavier_initializer())
+            bcnn1=tf.get_variable("bcnn1",[self.hidden_size], initializer=tf.contrib.layers.xavier_initializer())
+            out = tf.nn.conv1d(tf.one_hot(inputs, 97), wcnn1, stride=1, padding='SAME')
+            out = tf.nn.relu(out + bcnn1) - 0.01 * tf.nn.relu(-out - bcnn1)
             return out
 
 class BiLSTM_layer3(object):
