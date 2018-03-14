@@ -31,7 +31,7 @@ from evaluate import exact_match_score, f1_score
 from data_batcher import get_batch_generator
 from pretty_print import print_example
 from modules import RNNEncoder, SimpleSoftmaxLayer, BasicAttn
-from bidafmodule import char_CNN_layer1, BiLSTM_layer3, Attention_layer4, BiLSTM_layer5, OutputLayer_6
+from bidafmodule import char_CNN_layer1, BiLSTM_layer, Attention_layer4, OutputLayer_6
 
 logging.basicConfig(level=logging.INFO)
 
@@ -151,7 +151,7 @@ class QAModel(object):
         encoder3_c = BiLSTM_layer(self.FLAGS.hidden_size, self.keep_prob)
         context_hiddens = encoder3_c.build_graph(tf.concat([self.context_embs, context_char_embed], 2), self.context_mask, "BiLSTM3_Context") # (batch_size, context_len, hidden_size*2)
         encoder3_q = BiLSTM_layer(self.FLAGS.hidden_size, self.keep_prob)
-        question_hiddens = encoder3_q.build_graph(tf.concat([self.qn_embs, qn_char_embed], 2), self.qn_mask, "BiLSTM3_Context") # (batch_size, question_len, hidden_size*2)
+        question_hiddens = encoder3_q.build_graph(tf.concat([self.qn_embs, qn_char_embed], 2), self.qn_mask, "BiLSTM3_qn") # (batch_size, question_len, hidden_size*2)
 
         # Use context hidden states to attend to question hidden states
         attn_layer = Attention_layer4(self.keep_prob)
