@@ -148,20 +148,20 @@ class QAModel(object):
         context_char_embed = tf.transpose(tf.tensordot(whwyc, context_char_embed_big, axes=[[1], [1]]), perm = [1, 0, 2]) # shape (batch_size, context_len, embedding_size)
         qn_char_embed = tf.transpose(tf.tensordot(whwyq, qn_char_embed_big, axes=[[1], [1]]), perm = [1, 0, 2]) # shape (batch_size, qn_len, embedding_size)
 
-        encoder = BiLSTM_layer3(self.FLAGS.hidden_size, self.keep_prob)
-        context_hiddens = encoder.build_graph(tf.concat([self.context_embs, context_char_embed], 2), self.context_mask) # (batch_size, context_len, hidden_size*2)
-        question_hiddens = encoder.build_graph(tf.concat([self.qn_embs, qn_char_embed], 2), self.qn_mask) # (batch_size, question_len, hidden_size*2)
+        encoder3_c = BiLSTM_layer(self.FLAGS.hidden_size, self.keep_prob)
+        context_hiddens = encoder3_c.build_graph(tf.concat([self.context_embs, context_char_embed], 2), self.context_mask, "BiLSTM3_Context") # (batch_size, context_len, hidden_size*2)
+        encoder3_q = BiLSTM_layer(self.FLAGS.hidden_size, self.keep_prob)
+        question_hiddens = encoder3_q.build_graph(tf.concat([self.qn_embs, qn_char_embed], 2), self.qn_mask, "BiLSTM3_Context") # (batch_size, question_len, hidden_size*2)
 
         # Use context hidden states to attend to question hidden states
         attn_layer = Attention_layer4(self.keep_prob)
-        attn_output = attn_layer.build_graph(context_hiddens, question_hiddens, self.qn_mask)# (batch_size, hidden_size*8, context_len)
+        attn_output = attn_layer.build_graph(context_hiddens, question_hiddens, self.context_mask, self.qn_mask)# (batch_size, hidden_size*8, context_len)
 
-        encoder1 = BiLSTM_layer5(self.FLAGS.hidden_size, self.keep_prob)
-        encode_out_1 = tf.transpose(encoder1.build_graph(tf.transpose(attn_output, perm=[0, 2, 1]), "BiLSTM5_1"), perm=[0, 2, 1])# (batch_size, hidden_size*2, context_len)
+        encoder5_1 = BiLSTM_layer(self.FLAGS.hidden_size, self.keep_prob)
+        encode_out_1 = encoder5_1.build_graph(tf.transpose(attn_output, perm=[0, 2, 1]), self.context_mask, "BiLSTM5_1")# (batch_size, context_len, hidden_size*2)
 
-        encoder2 = BiLSTM_layer5(self.FLAGS.hidden_size, self.keep_prob)
-        encode_out = tf.transpose(encoder2.build_graph(tf.transpose(encode_out_1, perm=[0, 2, 1]), "BiLSTM5_2"), perm=[0, 2, 1])# (batch_size, hidden_size*2, context_len)
-
+        encoder5_2 = BiLSTM_layer(self.FLAGS.hidden_size, self.keep_prob)
+        encode_out = tf.transpose(encoder5_2.build_graph(encode_out_1, self.context_mask, "BiLSTM5_2"), perm=[0, 2, 1])# (batch_size, hidden_size*2, context_len)
 
         softm = OutputLayer_6(self.FLAGS.hidden_size, self.keep_prob)
         self.logits_start, self.probdist_start, self.logits_end, self.probdist_end = softm.build_graph(attn_output,encode_out, self.context_mask)
