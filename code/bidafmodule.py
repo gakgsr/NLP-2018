@@ -64,10 +64,9 @@ class Attention_layer4(object):
             #p3_1=tf.multiply(tf.expand_dims(H,3),tf.expand_dims(U,2))  # shape (batch_size,embedding_size, contex_len, question_len)
             p3=tf.tensordot(w3, tf.multiply(tf.expand_dims(H,3),tf.expand_dims(U,2)),axes=[[0],[1]]) # batch_dim contex_len question_len
             S_hat = tf.add(tf.add(tf.expand_dims(p1, 2), tf.expand_dims(p2, 1)), p3) # batch_dim contex_len question_len
-            _, S_u = masked_softmax(S_hat, tf.expand_dims(U_mask, 1), 2)
-            _, S_h = masked_softmax(S_hat, tf.expand_dims(H_mask, 2), 1)
-            a=tf.nn.softmax(S_u,dim=1) # batch_dim contex_len question_len
-            b=tf.nn.softmax(tf.reduce_max(S_h,reduction_indices=2),dim=1)  # batch_dim contex_len
+            _, a = masked_softmax(S_hat, tf.expand_dims(U_mask, 1), 2) # batch_dim contex_len question_len
+            _, S_h = masked_softmax(S_hat, tf.expand_dims(H_mask, 2), 1) # batch_dim contex_len question_len
+            b=tf.reduce_max(S_h,reduction_indices=2)  # batch_dim contex_len
             U_hat=tf.matmul(U,tf.transpose(a,perm=[0,2,1])) #batch_dim embed_dim context_len
             H_hat=tf.matmul(H, tf.expand_dims(b, 2)) #batch_dim embed_dim 
             output1=tf.concat([H,U_hat],1)  #batch_dim 2*embed_dim context_len
@@ -80,9 +79,9 @@ class OutputLayer_6(object):
     def __init__(self, hidden_size, keep_prob):
         self.hidden_size = hidden_size
         self.keep_prob = keep_prob
-        self.rnn_cell_fw = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, forget_bias=1.0)
+        self.rnn_cell_fw = tf.contrib.rnn.LSTMCell(self.hidden_size, forget_bias=1.0)
         self.rnn_cell_fw = DropoutWrapper(self.rnn_cell_fw, input_keep_prob=self.keep_prob)
-        self.rnn_cell_bw = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, forget_bias=1.0)
+        self.rnn_cell_bw = tf.contrib.rnn.LSTMCell(self.hidden_size, forget_bias=1.0)
         self.rnn_cell_bw = DropoutWrapper(self.rnn_cell_bw, input_keep_prob=self.keep_prob)
 
     def build_graph(self, G, M, H_mask):

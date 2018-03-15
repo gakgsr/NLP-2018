@@ -87,6 +87,11 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
         if len(context_ids) > context_len:
             context_ids = context_ids[:context_len]
 
+        if len(qn_char_ids) > 9*question_len:
+            qn_char_ids = qn_char_ids[:9*question_len]
+        if len(context_char_ids) > 9*context_len:
+            context_char_ids = context_char_ids[:9*context_len]
+
         # Add to list of examples
         examples.append((qn_uuid, context_tokens, context_ids, qn_ids, context_char_ids, qn_char_ids))
 

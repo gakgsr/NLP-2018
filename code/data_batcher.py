@@ -152,12 +152,25 @@ def refill_batches(batches, word2id, context_file, qn_file, ans_file, batch_size
             else: # truncate
                 qn_ids = qn_ids[:question_len]
 
+        if len(qn_char_ids) > 9*question_len:
+            if discard_long:
+                continue
+            else: # truncate
+                qn_char_ids = qn_char_ids[:9*question_len]
+
+
         # discard or truncate too-long contexts
         if len(context_ids) > context_len:
             if discard_long:
                 continue
             else: # truncate
                 context_ids = context_ids[:context_len]
+
+        if len(context_char_ids) > 9*context_len:
+            if discard_long:
+                continue
+            else: # truncate
+                context_char_ids = context_char_ids[:9*context_len]
 
         # add to examples
         examples.append((context_ids, context_tokens, qn_ids, qn_tokens, ans_span, ans_tokens, context_char_ids, qn_char_ids))
