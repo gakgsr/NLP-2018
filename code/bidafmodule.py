@@ -89,7 +89,7 @@ class OutputLayer_6(object):
 
             # Linear downprojection layer
             (fw_out, bw_out), (out_fw_state,out_bw_state) = tf.nn.bidirectional_dynamic_rnn(self.rnn_cell_fw, self.rnn_cell_bw, tf.transpose(M, perm=[0, 2, 1]), dtype=tf.float32)
-            M2 = tf.transpose(tf.concat([fw_out, bw_out], 2), perm = [0, 2, 1])
+            M2 = tf.nn.dropout(tf.transpose(tf.concat([fw_out, bw_out], 2), perm = [0, 2, 1]), self.keer_prob)
 
             G_shap=G.get_shape().as_list()
             M_shap=M.get_shape().as_list()
