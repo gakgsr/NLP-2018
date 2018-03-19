@@ -27,9 +27,13 @@ import tensorflow as tf
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.ops import embedding_ops
 
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
 from evaluate import exact_match_score, f1_score
 from data_batcher import get_batch_generator
-from pretty_print import print_example
+from pretty_print import print_example, print_example_attn
 from modules import RNNEncoder, SimpleSoftmaxLayer, BasicAttn
 from bidafmodule import char_CNN_layer1, BiLSTM_layer, Attention_layer4, OutputLayer_6
 
@@ -155,7 +159,7 @@ class QAModel(object):
 
         # Use context hidden states to attend to question hidden states
         attn_layer = Attention_layer4(self.keep_prob)
-        attn_output = attn_layer.build_graph(context_hiddens, question_hiddens, self.context_mask, self.qn_mask)# (batch_size, hidden_size*8, context_len)
+        attn_output, self.c2q_attn, self.q2c_attn = attn_layer.build_graph(context_hiddens, question_hiddens, self.context_mask, self.qn_mask)# (batch_size, hidden_size*8, context_len)
 
         encoder5_1 = BiLSTM_layer(2*self.FLAGS.hidden_size, self.keep_prob)
         encode_out_1 = encoder5_1.build_graph(tf.transpose(attn_output, perm=[0, 2, 1]), self.context_mask, "BiLSTM5_1")# (batch_size, context_len, hidden_size*2)
@@ -442,6 +446,100 @@ class QAModel(object):
                 # Optionally pretty-print
                 if print_to_screen:
                     print_example(self.word2id, batch.context_tokens[ex_idx], batch.qn_tokens[ex_idx], batch.ans_span[ex_idx, 0], batch.ans_span[ex_idx, 1], pred_ans_start, pred_ans_end, true_answer, pred_answer, f1, em)
+
+                if num_samples != 0 and example_num >= num_samples:
+                    break
+
+            if num_samples != 0 and example_num >= num_samples:
+                break
+
+        f1_total /= example_num
+        em_total /= example_num
+
+        toc = time.time()
+        logging.info("Calculating F1/EM for %i examples in %s set took %.2f seconds" % (example_num, dataset, toc-tic))
+
+        return f1_total, em_total
+
+    def get_results_vis(self, session, batch):
+        input_feed = {}
+        input_feed[self.context_ids] = batch.context_ids
+        input_feed[self.context_char_ids] = batch.context_char_ids
+        input_feed[self.context_mask] = batch.context_mask
+        input_feed[self.qn_ids] = batch.qn_ids
+        input_feed[self.qn_char_ids] = batch.qn_char_ids
+        input_feed[self.qn_mask] = batch.qn_mask
+        # note you don't supply keep_prob here, so it will default to 1 i.e. no dropout
+
+        output_feed = [self.probdist_start, self.probdist_end, self.c2q_attn, self.q2c_attn, self.logits_start, self.logits_end]
+        [probdist_start, probdist_end, c2q_attn, q2c_attn, strt_logts, end_logts] = session.run(output_feed, input_feed)
+        start_pos = np.argmax(probdist_start, axis=1)
+        end_pos = np.argmax(probdist_end, axis=1)
+        return start_pos, end_pos, c2q_attn, q2c_attn, strt_logts, end_logts
+
+    def visualize_results(self, session, context_path, qn_path, ans_path, dataset, num_samples=100, print_to_screen=False):
+        logging.info("Calculating F1/EM for %s examples in %s set..." % (str(num_samples) if num_samples != 0 else "all", dataset))
+
+        f1_total = 0.
+        em_total = 0.
+        example_num = 0
+
+        tic = time.time()
+
+        # Note here we select discard_long=False because we want to sample from the entire dataset
+        # That means we're truncating, rather than discarding, examples with too-long context or questions
+        for batch in get_batch_generator(self.word2id, context_path, qn_path, ans_path, self.FLAGS.batch_size, context_len=self.FLAGS.context_len, question_len=self.FLAGS.question_len, discard_long=False):
+
+            pred_start_pos, pred_end_pos, c2q_attn, q2c_attn, strt_logts, end_logts = self.get_results_vis(session, batch)
+
+            # Convert the start and end positions to lists length batch_size
+            pred_start_pos = pred_start_pos.tolist() # list length batch_size
+            pred_end_pos = pred_end_pos.tolist() # list length batch_size
+
+            q2c_attn = np.argmax(q2c_attn, axis = 1)
+            q2c_attn = q2c_attn.tolist()
+
+            fig = plt.figure()
+
+            gs = grd.GridSpec(3, 1, height_ratios=[1, 3, 1])
+
+            ax = plt.subplot(gs[1])
+            p = ax.imshow(c2q_attn[0, :, :],interpolation='nearest',aspect='auto')
+            plt.title('c2q attn')
+
+            ax2 = plt.subplot(gs[0])
+            ax2.plot(strt_logts[0, :])
+            plt.title('start logits')
+
+            ax3 = plt.subplot(gs[2])
+            ax3.plot(end_logts[0, :])
+            plt.title('end logits')
+
+            plt.savefig('c2q_attn.pdf')
+            plt.clf()
+
+            for ex_idx, (pred_ans_start, pred_ans_end, true_ans_tokens, q2c_attn_idx) in enumerate(zip(pred_start_pos, pred_end_pos, batch.ans_tokens, q2c_attn)):
+                example_num += 1
+
+                # Get the predicted answer
+                # Important: batch.context_tokens contains the original words (no UNKs)
+                # You need to use the original no-UNK version when measuring F1/EM
+                pred_ans_tokens = batch.context_tokens[ex_idx][pred_ans_start : pred_ans_end + 1]
+                pred_answer = " ".join(pred_ans_tokens)
+                qn_attn = " ".join(batch.context_tokens[ex_idx][q2c_attn_idx[:len(batch.qn_tokens)]])
+
+                # Get true answer (no UNKs)
+                true_answer = " ".join(true_ans_tokens)
+
+                # Calc F1/EM
+                f1 = f1_score(pred_answer, true_answer)
+                em = exact_match_score(pred_answer, true_answer)
+                f1_total += f1
+                em_total += em
+
+                # Optionally pretty-print
+                if print_to_screen:
+                    print_example_attn(self.word2id, batch.context_tokens[ex_idx], batch.qn_tokens[ex_idx], qn_attn, batch.ans_span[ex_idx, 0], batch.ans_span[ex_idx, 1], pred_ans_start, pred_ans_end, true_answer, pred_answer, f1, em)
 
                 if num_samples != 0 and example_num >= num_samples:
                     break

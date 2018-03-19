@@ -73,7 +73,7 @@ class Attention_layer4(object):
             output2=tf.concat([tf.multiply(H,U_hat),tf.multiply(H,H_hat)],1)  #batch_dim 2*embed_dim context_len
             output=tf.concat([output1,output2],1)  #batch_dim 4*embed_dim context_len
             output = tf.nn.dropout(output, self.keep_prob)
-            return output
+            return output, a, S_h
 
 class OutputLayer_6(object):
     def __init__(self, hidden_size, keep_prob):
