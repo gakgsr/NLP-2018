@@ -12,7 +12,7 @@ class char_CNN_layer1(object):
             wcnn1=tf.get_variable("wcnn1",[5, 97, self.hidden_size], initializer=tf.contrib.layers.xavier_initializer())
             bcnn1=tf.get_variable("bcnn1",[self.hidden_size], initializer=tf.contrib.layers.xavier_initializer())
             out = tf.nn.conv1d(tf.one_hot(inputs, 97), wcnn1, stride=1, padding='SAME')
-            out = tf.nn.relu(out + bcnn1) - 0.01 * tf.nn.relu(-out - bcnn1)
+            out = tf.nn.relu(out + bcnn1) - 0.005 * tf.nn.relu(-out - bcnn1)
             return out
 
 class BiLSTM_layer(object):
@@ -89,7 +89,7 @@ class OutputLayer_6(object):
 
             # Linear downprojection layer
             (fw_out, bw_out), (out_fw_state,out_bw_state) = tf.nn.bidirectional_dynamic_rnn(self.rnn_cell_fw, self.rnn_cell_bw, tf.transpose(M, perm=[0, 2, 1]), dtype=tf.float32)
-            M2 = tf.nn.dropout(tf.transpose(tf.concat([fw_out, bw_out], 2), perm = [0, 2, 1]), self.keer_prob)
+            M2 = tf.nn.dropout(tf.transpose(tf.concat([fw_out, bw_out], 2), perm = [0, 2, 1]), self.keep_prob)
 
             G_shap=G.get_shape().as_list()
             M_shap=M.get_shape().as_list()
