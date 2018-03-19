@@ -30,6 +30,7 @@ from tensorflow.python.ops import embedding_ops
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as grd
 
 from evaluate import exact_match_score, f1_score
 from data_batcher import get_batch_generator
@@ -504,15 +505,16 @@ class QAModel(object):
             gs = grd.GridSpec(3, 1, height_ratios=[1, 3, 1])
 
             ax = plt.subplot(gs[1])
-            p = ax.imshow(c2q_attn[0, :, :],interpolation='nearest',aspect='auto')
+            c2q_attn_plt = c2q_attn[0, :, len(batch.context_tokens[0])]
+            p = ax.imshow(np.transpose(c2q_attn_plt),interpolation='nearest',aspect='auto')
             plt.title('c2q attn')
 
             ax2 = plt.subplot(gs[0])
-            ax2.plot(strt_logts[0, :])
+            ax2.plot(strt_logts[0, :len(batch.context_tokens[0])])
             plt.title('start logits')
 
             ax3 = plt.subplot(gs[2])
-            ax3.plot(end_logts[0, :])
+            ax3.plot(end_logts[0, :len(batch.context_tokens[0])])
             plt.title('end logits')
 
             plt.savefig('c2q_attn.pdf')
@@ -526,7 +528,8 @@ class QAModel(object):
                 # You need to use the original no-UNK version when measuring F1/EM
                 pred_ans_tokens = batch.context_tokens[ex_idx][pred_ans_start : pred_ans_end + 1]
                 pred_answer = " ".join(pred_ans_tokens)
-                qn_attn = " ".join(batch.context_tokens[ex_idx][q2c_attn_idx[:len(batch.qn_tokens)]])
+                qn_attn_words = [batch.context_tokens[ex_idx][i] for i in q2c_attn_idx[:len(batch.qn_tokens)]]
+                qn_attn = " ".join(qn_attn_words)
 
                 # Get true answer (no UNKs)
                 true_answer = " ".join(true_ans_tokens)
