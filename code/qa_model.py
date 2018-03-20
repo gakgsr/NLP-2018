@@ -520,7 +520,7 @@ class QAModel(object):
             plt.ylabel('end logits')
             plt.xlim(0,len(batch.context_tokens[0]))
 
-            plt.savefig('c2q_attn.jpg')
+            plt.savefig('c2q_attn.png')
             plt.clf()
 
             for ex_idx, (pred_ans_start, pred_ans_end, true_ans_tokens, q2c_attn_idx) in enumerate(zip(pred_start_pos, pred_end_pos, batch.ans_tokens, q2c_attn)):

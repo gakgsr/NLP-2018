@@ -2,6 +2,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
+import re
 import numpy as np
 
 def split_by_whitespace(sentence):
@@ -16,19 +17,9 @@ def intstr_to_intlist(string):
     return [int(s) for s in string.split()]
 
 
-def sentence_to_token_ids(sentence, word2id):
-    """Turns an already-tokenized sentence string into word indices
-    e.g. "i do n't know" -> [9, 32, 16, 96]
-    Note any token that isn't in the word2id mapping gets mapped to the id for UNK
-    """
-    tokens = split_by_whitespace(sentence) # list of strings
-    ids = [word2id.get(w, UNK_ID) for w in tokens]
-    return tokens, ids
-
-
 context_file = open('../data/train.context')
 qn_file = open('../data/train.question')
-ans_file = open('../data/train.answer')
+ans_file = open('../data/train.span')
 
 context_line, qn_line, ans_line = context_file.readline(), qn_file.readline(), ans_file.readline()
 
@@ -37,8 +28,8 @@ qn_len = []
 ans_len = []
 
 while context_line and qn_line and ans_line:
-  context_tokens, context_ids = sentence_to_token_ids(context_line, word2id)
-  qn_tokens, qn_ids = sentence_to_token_ids(qn_line, word2id)
+  context_tokens = split_by_whitespace(context_line)
+  qn_tokens = split_by_whitespace(qn_line)
   ans_span = intstr_to_intlist(ans_line)
   context_line, qn_line, ans_line = context_file.readline(), qn_file.readline(), ans_file.readline()
   assert len(ans_span) == 2
@@ -46,7 +37,7 @@ while context_line and qn_line and ans_line:
     print "Found an ill-formed gold span: start=%i end=%i" % (ans_span[0], ans_span[1])
     continue
   context_len.append(len(context_tokens))
-  qn_len.append(len(context_tokens))
+  qn_len.append(len(qn_tokens))
   ans_len.append(ans_span[1] - ans_span[0])
 
 context_len = np.array(context_len, dtype = int)
@@ -54,11 +45,20 @@ qn_len = np.array(qn_len, dtype = int)
 ans_len = np.array(ans_len, dtype = int)
 
 plt.hist(context_len)
-plt.savefig('context_len.jpg')
+plt.xlabel('context length')
+plt.ylabel('frequency')
+plt.title('histogram of context length')
+plt.savefig('context_len.png')
 plt.clf()
 plt.hist(qn_len)
-plt.savefig('qn_len.jpg')
+plt.xlabel('question length')
+plt.ylabel('frequency')
+plt.title('histogram of question length')
+plt.savefig('qn_len.png')
 plt.clf()
 plt.hist(ans_len)
-plt.savefig('ans_len.jpg')
+plt.xlabel('answer length')
+plt.ylabel('frequency')
+plt.title('histogram of answer length')
+plt.savefig('ans_len.png')
 plt.clf()
