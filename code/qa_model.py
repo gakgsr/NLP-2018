@@ -162,7 +162,7 @@ class QAModel(object):
         attn_layer = Attention_layer4(self.keep_prob)
         attn_output, self.c2q_attn, self.q2c_attn = attn_layer.build_graph(context_hiddens, question_hiddens, self.context_mask, self.qn_mask)# (batch_size, hidden_size*8, context_len)
 
-        encoder5_1 = BiLSTM_layer(2*self.FLAGS.hidden_size, self.keep_prob)
+        encoder5_1 = BiLSTM_layer(self.FLAGS.hidden_size, self.keep_prob)
         encode_out_1 = encoder5_1.build_graph(tf.transpose(attn_output, perm=[0, 2, 1]), self.context_mask, "BiLSTM5_1")# (batch_size, context_len, hidden_size*2)
 
         encoder5_2 = BiLSTM_layer(self.FLAGS.hidden_size, self.keep_prob)
