@@ -505,17 +505,20 @@ class QAModel(object):
             gs = grd.GridSpec(3, 1, height_ratios=[1, 3, 1])
 
             ax = plt.subplot(gs[1])
-            c2q_attn_plt = c2q_attn[0, :, len(batch.context_tokens[0])]
+            c2q_attn_plt = c2q_attn[0, :len(batch.context_tokens[0]), :len(batch.qn_tokens[0])]
             p = ax.imshow(np.transpose(c2q_attn_plt),interpolation='nearest',aspect='auto')
-            plt.title('c2q attn')
+            plt.ylabel('c2q attn')
+            plt.xlim(0,len(batch.context_tokens[0]))
 
             ax2 = plt.subplot(gs[0])
             ax2.plot(strt_logts[0, :len(batch.context_tokens[0])])
-            plt.title('start logits')
+            plt.ylabel('start logits')
+            plt.xlim(0,len(batch.context_tokens[0]))
 
             ax3 = plt.subplot(gs[2])
             ax3.plot(end_logts[0, :len(batch.context_tokens[0])])
-            plt.title('end logits')
+            plt.ylabel('end logits')
+            plt.xlim(0,len(batch.context_tokens[0]))
 
             plt.savefig('c2q_attn.pdf')
             plt.clf()
@@ -528,7 +531,7 @@ class QAModel(object):
                 # You need to use the original no-UNK version when measuring F1/EM
                 pred_ans_tokens = batch.context_tokens[ex_idx][pred_ans_start : pred_ans_end + 1]
                 pred_answer = " ".join(pred_ans_tokens)
-                qn_attn_words = [batch.context_tokens[ex_idx][i] for i in q2c_attn_idx[:len(batch.qn_tokens)]]
+                qn_attn_words = [batch.context_tokens[ex_idx][i] for i in q2c_attn_idx[:len(batch.qn_tokens[ex_idx])]]
                 qn_attn = " ".join(qn_attn_words)
 
                 # Get true answer (no UNKs)
